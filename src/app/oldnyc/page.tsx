@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useState, useEffect, useCallback, useRef } from "react";
-import PhotoGrid from "@/components/PhotoGrid";
+import PhotoCarousel from "@/components/PhotoCarousel";
 import type { Photo } from "@/app/api/nearby/route";
 
 // Leaflet must not render on the server
@@ -22,13 +22,18 @@ type GeoState =
   | { status: "denied" }
   | { status: "manual"; lat: number; lng: number };
 
+interface CarouselState {
+  photos: Photo[];
+  locationKey: string;
+}
+
 export default function OldNYCPage() {
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
   const [radius, setRadius] = useState(500);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [highlightIds, setHighlightIds] = useState<Set<string>>(new Set());
+  const [carousel, setCarousel] = useState<CarouselState | null>(null);
   const [manualInput, setManualInput] = useState("");
   const fetchRef = useRef<AbortController | null>(null);
 
@@ -68,7 +73,6 @@ export default function OldNYCPage() {
       })
       .then(({ photos }) => {
         setPhotos(photos);
-        setHighlightIds(new Set());
       })
       .catch((e) => {
         if (e.name !== "AbortError") setError(e.message);
@@ -77,7 +81,9 @@ export default function OldNYCPage() {
   }, [activeLat, activeLng, radius]);
 
   const handleClusterClick = useCallback((clusterPhotos: Photo[]) => {
-    setHighlightIds(new Set(clusterPhotos.map((p) => p.id)));
+    const first = clusterPhotos[0];
+    const locationKey = `${first.lat},${first.lon}`;
+    setCarousel({ photos: clusterPhotos, locationKey });
   }, []);
 
   function handleManualSubmit(e: React.FormEvent) {
@@ -90,6 +96,15 @@ export default function OldNYCPage() {
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
+      {/* Carousel modal */}
+      {carousel && (
+        <PhotoCarousel
+          photos={carousel.photos}
+          locationKey={carousel.locationKey}
+          onClose={() => setCarousel(null)}
+        />
+      )}
+
       {/* Header */}
       <header className="px-5 py-4 border-b border-zinc-800 flex items-center gap-3">
         <span className="text-2xl">🗽</span>
@@ -157,7 +172,7 @@ export default function OldNYCPage() {
         )}
         {!loading && photos.length > 0 && (
           <span className="text-zinc-500 text-sm ml-auto">
-            {photos.length} photo{photos.length !== 1 ? "s" : ""} found
+            {photos.length} photo{photos.length !== 1 ? "s" : ""} found — click a marker to view
           </span>
         )}
         {error && (
@@ -168,8 +183,8 @@ export default function OldNYCPage() {
       {/* Main content */}
       {activeLat !== null && activeLng !== null ? (
         <div className="flex-1 flex flex-col">
-          {/* Map */}
-          <div className="h-72 sm:h-80 w-full relative">
+          {/* Map — takes full remaining height */}
+          <div className="flex-1 min-h-[400px] w-full relative">
             <NearbyMap
               userLat={activeLat}
               userLng={activeLng}
@@ -177,24 +192,6 @@ export default function OldNYCPage() {
               photos={photos}
               onClusterClick={handleClusterClick}
             />
-          </div>
-
-          {/* Photo grid */}
-          <div className="flex-1 px-5 py-5 overflow-auto">
-            {highlightIds.size > 0 && (
-              <div className="mb-3 flex items-center gap-2">
-                <span className="text-xs text-blue-400">
-                  {highlightIds.size} photo{highlightIds.size !== 1 ? "s" : ""} at selected location
-                </span>
-                <button
-                  className="text-xs text-zinc-500 hover:text-zinc-300 underline"
-                  onClick={() => setHighlightIds(new Set())}
-                >
-                  Clear selection
-                </button>
-              </div>
-            )}
-            <PhotoGrid photos={photos} highlightIds={highlightIds} />
           </div>
         </div>
       ) : (

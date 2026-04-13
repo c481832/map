@@ -126,7 +126,7 @@ export default function NearbyMap({
             <Popup>
               <strong>{clusterPhotos.length} photo{clusterPhotos.length !== 1 ? "s" : ""}</strong>
               <br />
-              {clusterPhotos[0]?.title || "Historical photo"}
+              <span style={{ fontSize: "11px", color: "#666" }}>Click to browse photos</span>
             </Popup>
           </Marker>
         );
