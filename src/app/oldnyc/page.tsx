@@ -34,6 +34,7 @@ export default function OldNYCPage() {
   const [carousel, setCarousel] = useState<{ photos: Photo[]; key: string } | null>(null);
   const [exploredKeys, setExploredKeys] = useState<Set<string>>(new Set());
   const fetchRef = useRef<AbortController | null>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
 
   // Load explored keys from localStorage on mount
   useEffect(() => {
@@ -123,7 +124,12 @@ export default function OldNYCPage() {
           clusterKey={carousel.key}
           isExplored={exploredKeys.has(carousel.key)}
           onMarkExplored={() => handleMarkExplored(carousel.key)}
-          onClose={() => setCarousel(null)}
+          onClose={() => {
+            setCarousel(null);
+            requestAnimationFrame(() =>
+              mapRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+            );
+          }}
         />
       )}
       {/* Header */}
@@ -205,7 +211,7 @@ export default function OldNYCPage() {
       {activeLat !== null && activeLng !== null ? (
         <div className="flex-1 flex flex-col">
           {/* Map */}
-          <div className="h-72 sm:h-80 w-full relative">
+          <div ref={mapRef} className="h-72 sm:h-80 w-full relative">
             <NearbyMap
               userLat={activeLat}
               userLng={activeLng}
