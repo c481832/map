@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useState, useEffect, useCallback, useRef } from "react";
 import PhotoGrid from "@/components/PhotoGrid";
+import PhotoCarousel from "@/components/PhotoCarousel";
 import type { Photo } from "@/app/api/nearby/route";
 
 // Leaflet must not render on the server
@@ -30,7 +31,19 @@ export default function OldNYCPage() {
   const [error, setError] = useState<string | null>(null);
   const [highlightIds, setHighlightIds] = useState<Set<string>>(new Set());
   const [manualInput, setManualInput] = useState("");
+  const [carousel, setCarousel] = useState<{ photos: Photo[]; key: string } | null>(null);
+  const [exploredKeys, setExploredKeys] = useState<Set<string>>(new Set());
   const fetchRef = useRef<AbortController | null>(null);
+
+  // Load explored keys from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("oldnyc-explored");
+      if (stored) setExploredKeys(new Set(JSON.parse(stored) as string[]));
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Request geolocation on mount
   useEffect(() => {
@@ -76,8 +89,22 @@ export default function OldNYCPage() {
       .finally(() => setLoading(false));
   }, [activeLat, activeLng, radius]);
 
-  const handleClusterClick = useCallback((clusterPhotos: Photo[]) => {
+  const handleClusterClick = useCallback((clusterPhotos: Photo[], key: string) => {
     setHighlightIds(new Set(clusterPhotos.map((p) => p.id)));
+    setCarousel({ photos: clusterPhotos, key });
+  }, []);
+
+  const handleMarkExplored = useCallback((key: string) => {
+    setExploredKeys((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      try {
+        localStorage.setItem("oldnyc-explored", JSON.stringify([...next]));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
   }, []);
 
   function handleManualSubmit(e: React.FormEvent) {
@@ -90,6 +117,15 @@ export default function OldNYCPage() {
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
+      {carousel && (
+        <PhotoCarousel
+          photos={carousel.photos}
+          clusterKey={carousel.key}
+          isExplored={exploredKeys.has(carousel.key)}
+          onMarkExplored={() => handleMarkExplored(carousel.key)}
+          onClose={() => setCarousel(null)}
+        />
+      )}
       {/* Header */}
       <header className="px-5 py-4 border-b border-zinc-800 flex items-center gap-3">
         <span className="text-2xl">🗽</span>
@@ -175,6 +211,7 @@ export default function OldNYCPage() {
               userLng={activeLng}
               radius={radius}
               photos={photos}
+              exploredKeys={exploredKeys}
               onClusterClick={handleClusterClick}
             />
           </div>

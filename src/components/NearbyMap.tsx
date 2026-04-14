@@ -39,6 +39,23 @@ const cameraIcon = new L.DivIcon({
   iconAnchor: [12, 24],
 });
 
+const cameraIconExplored = new L.DivIcon({
+  className: "",
+  html: `<div style="
+    background:#16a34a;
+    border:2px solid white;
+    border-radius:50% 50% 50% 0;
+    width:24px;height:24px;
+    display:flex;align-items:center;justify-content:center;
+    transform:rotate(-45deg);
+    box-shadow:0 2px 6px rgba(0,0,0,.4);
+  ">
+    <span style="transform:rotate(45deg);font-size:13px;color:white;font-weight:bold;">✓</span>
+  </div>`,
+  iconSize: [24, 24],
+  iconAnchor: [12, 24],
+});
+
 const userIcon = new L.DivIcon({
   className: "",
   html: `<div style="
@@ -76,7 +93,8 @@ interface Props {
   userLng: number;
   radius: number;
   photos: Photo[];
-  onClusterClick: (photos: Photo[]) => void;
+  exploredKeys: Set<string>;
+  onClusterClick: (photos: Photo[], key: string) => void;
 }
 
 export default function NearbyMap({
@@ -84,6 +102,7 @@ export default function NearbyMap({
   userLng,
   radius,
   photos,
+  exploredKeys,
   onClusterClick,
 }: Props) {
   const clusters = groupByCoord(photos);
@@ -120,8 +139,8 @@ export default function NearbyMap({
           <Marker
             key={key}
             position={[lat, lon]}
-            icon={cameraIcon}
-            eventHandlers={{ click: () => onClusterClick(clusterPhotos) }}
+            icon={exploredKeys.has(key) ? cameraIconExplored : cameraIcon}
+            eventHandlers={{ click: () => onClusterClick(clusterPhotos, key) }}
           >
             <Popup>
               <strong>{clusterPhotos.length} photo{clusterPhotos.length !== 1 ? "s" : ""}</strong>
